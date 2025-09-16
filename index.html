@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <title>Utility Monitoring</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -11,6 +12,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- XLSX -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; background:#f5f7fb; }
     h1 { color:#2563eb; }
@@ -21,6 +23,8 @@
     th,td { border:1px solid #ddd; padding:8px; text-align:center; }
     th { background:#2563eb; color:white; }
     canvas { background:#fff; border:1px solid #ddd; border-radius:8px; padding:10px; }
+    #btnCleanUp { background:#dc2626; color:white; font-weight:bold; cursor:pointer; }
+    #btnCleanUp:disabled { background:#aaa; cursor:not-allowed; }
   </style>
 </head>
 <body>
@@ -59,26 +63,29 @@
       <canvas id="chart" height="120"></canvas>
     </div>
     <button onclick="exportExcel()">Export Excel</button>
-    <table id="rekapTable"></table>
+
+    <!-- Tambahan tombol Clean Up -->
+    <button id="btnCleanUp" onclick="confirmAndClean()">🔧 Clean Up (hapus data > 60 hari)</button>
+    <div id="cleanProgress" style="margin-top:8px;color:#444"></div>
   </div>
 
-  <script>
-    // Config dari Firebase Console
-    const firebaseConfig = {
-      apiKey: "AIzaSyA9cPZlGt6nfcTqfo0H0_Jfd4RaVWOk--4",
-      authDomain: "utilitymonitoring.firebaseapp.com",
-      projectId: "utilitymonitoring",
-      storageBucket: "utilitymonitoring.appspot.com",
-      messagingSenderId: "427253616217",
-      appId: "1:427253616217:web:05032969604a91c4552b48",
-      measurementId: "G-4CE9GYWEPP"
-    };
+  <table id="rekapTable"></table>
 
-    // Inisialisasi Firebase
+  <script>
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyA9cPZlGt6nfcTqfo0H0_Jfd4RaVWOk--4",
+  authDomain: "utilitymonitoring.firebaseapp.com",
+  projectId: "utilitymonitoring",
+  storageBucket: "utilitymonitoring.firebasestorage.appspot.com",
+  messagingSenderId: "427253616217",
+  appId: "1:427253616217:web:05032969604a91c4552b48",
+  measurementId: "G-4CE9GYWEPP"
+    };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // Simpan data
+    // === Simpan Data ===
     async function saveData(){
       const kategori = document.getElementById("kategori").value;
       const today = document.getElementById("todayValue").value;
@@ -96,7 +103,7 @@
       loadYesterday(kategori);
     }
 
-    // Ambil data kemarin
+    // === Ambil data kemarin ===
     async function loadYesterday(kategori){
       const snap = await db.collection("utility_usage").doc(kategori)
         .collection("readings").orderBy("timestamp","desc").limit(2).get();
@@ -111,7 +118,7 @@
       }
     }
 
-    // Dashboard
+    // === Dashboard ===
     async function loadDashboard(){
       const kategori = document.getElementById("dashKategori").value;
       const month = document.getElementById("dashMonth").value; // yyyy-mm
@@ -139,13 +146,58 @@
       });
     }
 
-    // Export Excel
+    // === Export Excel ===
     function exportExcel(){
       const table = document.getElementById("rekapTable");
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.table_to_sheet(table);
       XLSX.utils.book_append_sheet(wb, ws, "Rekap");
       XLSX.writeFile(wb, "Rekap.xlsx");
+    }
+
+    // === Clean Up Function (hapus data lama) ===
+    async function cleanOldReadings(days = 60) {
+      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const progressEl = document.getElementById('cleanProgress');
+      progressEl.innerText = `Mencari dokumen yang lebih tua dari ${days} hari...`;
+
+      let totalDeleted = 0;
+      const pageSize = 500;
+
+      while (true) {
+        const q = db.collectionGroup('readings')
+          .where('timestamp', '<', cutoff)
+          .limit(pageSize);
+        const snap = await q.get();
+        if (snap.empty) break;
+
+        const batch = db.batch();
+        snap.docs.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+
+        totalDeleted += snap.size;
+        progressEl.innerText = `Terhapus ${totalDeleted} dokumen...`;
+
+        if (snap.size < pageSize) break;
+      }
+
+      progressEl.innerText = `Selesai. Total dokumen terhapus: ${totalDeleted}`;
+      return totalDeleted;
+    }
+
+    async function confirmAndClean() {
+      if (!confirm("Anda yakin akan menghapus data lama (> 60 hari)?")) return;
+      const btn = document.getElementById('btnCleanUp');
+      btn.disabled = true;
+      try {
+        const deleted = await cleanOldReadings(60);
+        alert(`Selesai. Terhapus ${deleted} dokumen lama.`);
+      } catch (err) {
+        console.error(err);
+        alert("Error saat hapus data");
+      } finally {
+        btn.disabled = false;
+      }
     }
   </script>
 </body>
