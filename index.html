@@ -104,6 +104,8 @@ const firebaseConfig = {
   appId: "1:427253616217:web:05032969604a91c4552b48",
   measurementId: "G-4CE9GYWEPP"
 };
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
 /* ======= Helpers tanggal ======= */
 function todayId(){
@@ -349,3 +351,4 @@ function addStyleToSheet(ws, range) {
 </script>
 </body>
 </html>
+
