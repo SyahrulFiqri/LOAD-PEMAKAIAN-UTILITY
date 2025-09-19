@@ -9,8 +9,8 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- XLSX -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- XLSX (styled) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-style@0.8.13/dist/xlsx.full.min.js"></script>
 
   <style>
     :root{--bg:#f5f7fb;--card:#fff;--primary:#2563eb;--muted:#6b7280}
@@ -94,17 +94,16 @@
 
 <script>
 /* ========= GANTI DENGAN FIREBASE CONFIG PROJECTMU ========= */
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MSG_ID",
-  appId: "YOUR_APP_ID",
-  measurementId: "YOUR_MEASUREMENT_ID"
+  apiKey: "AIzaSyA9cPZlGt6nfcTqfo0H0_Jfd4RaVWOk--4",
+  authDomain: "utilitymonitoring.firebaseapp.com",
+  projectId: "utilitymonitoring",
+  storageBucket: "utilitymonitoring.firebasestorage.app",
+  messagingSenderId: "427253616217",
+  appId: "1:427253616217:web:05032969604a91c4552b48",
+  measurementId: "G-4CE9GYWEPP"
 };
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
 
 /* ======= Helpers tanggal ======= */
 function todayId(){
@@ -220,6 +219,126 @@ async function loadDashboard(){
   });
 }
 function clearChart(){if(chartInstance){chartInstance.destroy();chartInstance=null;}}
+
+/* ---------------- styled export (Current) ---------------- */
+function exportCurrent(){
+  const cat = document.getElementById('kategori').value || document.getElementById('dashCat').value;
+  if(!cat) return alert('Pilih kategori dulu (untuk export sheet aktif).');
+  const date = document.getElementById('globalDate').value || todayId();
+
+  db.collection('utility_usage').doc(cat).collection('readings').doc(date).get()
+    .then(doc=>{
+      const wb = XLSX.utils.book_new();
+      let aoa = [];
+
+      if(!doc.exists){
+        aoa = [['No data for', date]];
+      } else {
+        const data = doc.data();
+        if(cat === 'PLN'){
+          aoa = [
+            ['Meter','Awal','Akhir','Pakai'],
+            ['LWBP', data.lwbpAwal||0, data.lwbpAkhir||0, data.lwbpPakai||0],
+            ['WBP',  data.wbpAwal||0,  data.wbpAkhir||0,  data.wbpPakai||0],
+            ['KVARh',data.kvarAwal||0, data.kvarAkhir||0, data.kvarPakai||0],
+            ['Total kWh','','', data.totalKwh||0]
+          ];
+        } else {
+          aoa = [['Name','Pemakaian']];
+          (data.items||[]).forEach(it=> aoa.push([it.name, it.pemakaian]));
+        }
+      }
+
+      const header = [['Tanggal:', date], []];
+      const aoaAll = [...header, ...aoa];
+      const ws = XLSX.utils.aoa_to_sheet(aoaAll);
+
+      setColumnWidths(ws, aoaAll);
+      const range = XLSX.utils.decode_range(ws['!ref']);
+      addStyleToSheet(ws, range);
+
+      XLSX.utils.book_append_sheet(wb, ws, cat.substring(0,31));
+      XLSX.writeFile(wb, `Pemakaian_${cat}_${date}.xlsx`);
+    })
+    .catch(err=>{ console.error(err); alert('Gagal export: '+err.message); });
+}
+
+/* ---------------- styled export (All categories for a month) ---------------- */
+async function exportAll(){
+  const month = document.getElementById('dashMonth').value;
+  if(!month) return alert('Pilih bulan di Dashboard (untuk exportAll)');
+
+  const cats = ['PLN','LVMDP','AHU','WATER'];
+  const wb = XLSX.utils.book_new();
+
+  for(const cat of cats){
+    const snap = await db.collection('utility_usage').doc(cat).collection('readings').orderBy('timestamp','asc').get();
+    const rows = snap.docs.map(d=>({id:d.id, ...d.data()})).filter(x=>x.id.startsWith(month));
+
+    let aoa = [];
+    if(cat === 'PLN'){
+      aoa.push(['Tanggal','LWBP Awal','LWBP Akhir','LWBP Pakai','WBP Awal','WBP Akhir','WBP Pakai','KVAR Awal','KVAR Akhir','KVAR Pakai','Total kWh']);
+      rows.forEach(r=>{
+        aoa.push([r.id, r.lwbpAwal||0, r.lwbpAkhir||0, r.lwbpPakai||0, r.wbpAwal||0, r.wbpAkhir||0, r.wbpPakai||0, r.kvarAwal||0, r.kvarAkhir||0, r.kvarPakai||0, r.totalKwh||0]);
+      });
+    } else {
+      aoa.push(['Tanggal','Name','Pemakaian']);
+      rows.forEach(r=>{
+        (r.items||[]).forEach(it=>{
+          aoa.push([r.id, it.name, it.pemakaian]);
+        });
+      });
+    }
+
+    const header = [[`Category: ${cat}`],[`Bulan: ${month}`],[]];
+    const aoaAll = [...header, ...aoa];
+    const ws = XLSX.utils.aoa_to_sheet(aoaAll);
+
+    setColumnWidths(ws, aoaAll);
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    addStyleToSheet(ws, range);
+
+    XLSX.utils.book_append_sheet(wb, ws, cat.substring(0,31));
+  }
+
+  XLSX.writeFile(wb, `Pemakaian_All_${month}.xlsx`);
+}
+
+/* ===== helper: set column widths berdasarkan isi aoa ===== */
+function setColumnWidths(ws, aoa) {
+  const colWidths = [];
+  aoa.forEach(row => {
+    row.forEach((cell, cIdx) => {
+      const len = cell === null || cell === undefined ? 0 : String(cell).length;
+      colWidths[cIdx] = Math.max(colWidths[cIdx] || 0, len);
+    });
+  });
+  ws['!cols'] = colWidths.map(w => {
+    const width = Math.min(Math.max(Math.ceil(w) + 2, 10), 50);
+    return { wch: width };
+  });
+}
+
+/* ===== helper: add border + bold header + center alignment ===== */
+function addStyleToSheet(ws, range) {
+  for (let R = range.s.r; R <= range.e.r; ++R) {
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      const cell_address = {c:C, r:R};
+      const cell_ref = XLSX.utils.encode_cell(cell_address);
+      if(!ws[cell_ref]) continue;
+      ws[cell_ref].s = {
+        border: {
+          top: {style: "thin", color: {rgb: "000000"}},
+          bottom: {style: "thin", color: {rgb: "000000"}},
+          left: {style: "thin", color: {rgb: "000000"}},
+          right: {style: "thin", color: {rgb: "000000"}}
+        },
+        font: { bold: (R === (range.s.r+2) || R === range.s.r) }, 
+        alignment: { horizontal: "center", vertical: "center", wrapText: true }
+      };
+    }
+  }
+}
 
 /* ================== INIT ================== */
 (function init(){
