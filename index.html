@@ -93,9 +93,7 @@
   </div>
 
 <script>
-/* ========= GANTI DENGAN FIREBASE CONFIG PROJECTMU ========= */
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// ========= FIREBASE CONFIG =========
 const firebaseConfig = {
   apiKey: "AIzaSyA9cPZlGt6nfcTqfo0H0_Jfd4RaVWOk--4",
   authDomain: "utilitymonitoring.firebaseapp.com",
@@ -108,10 +106,50 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+// ========= SIMPAN DATA KE FIRESTORE =========
+async function saveVisible(){
+  const cat = document.getElementById('kategori').value;
+  const date = document.getElementById('globalDate').value || todayId();
+  if(!cat){ alert("Pilih kategori dulu."); return; }
 
-/* ======= Helpers tanggal ======= */
+  let data = {};
+  if(cat === 'PLN'){
+    const lwbpAwal = parseFloat(document.querySelector('[data-field="lwbpAwal"]').value)||0;
+    const lwbpAkhir = parseFloat(document.querySelector('[data-field="lwbpAkhir"]').value)||0;
+    const wbpAwal  = parseFloat(document.querySelector('[data-field="wbpAwal"]').value)||0;
+    const wbpAkhir = parseFloat(document.querySelector('[data-field="wbpAkhir"]').value)||0;
+    const kvarAwal = parseFloat(document.querySelector('[data-field="kvarAwal"]').value)||0;
+    const kvarAkhir= parseFloat(document.querySelector('[data-field="kvarAkhir"]').value)||0;
+
+    data = {
+      lwbpAwal, lwbpAkhir, lwbpPakai:(lwbpAkhir-lwbpAwal),
+      wbpAwal, wbpAkhir, wbpPakai:(wbpAkhir-wbpAwal),
+      kvarAwal,kvarAkhir,kvarPakai:(kvarAkhir-kvarAwal),
+      totalKwh:(lwbpAkhir-lwbpAwal)+(wbpAkhir-wbpAwal),
+      timestamp: Date.now()
+    };
+  } 
+  else {
+    const rows = document.querySelectorAll(`#formArea tbody tr`);
+    const items = [];
+    rows.forEach(r=>{
+      const name = r.querySelector('input[type="text"]').value;
+      const pemakaian = parseFloat(r.querySelector('input[type="number"]').value)||0;
+      items.push({name, pemakaian});
+    });
+    data = {items, timestamp: Date.now()};
+  }
+
+  try {
+    await db.collection('utility_usage').doc(cat).collection('readings').doc(date).set(data);
+    alert("✅ Data tersimpan untuk "+cat+" ("+date+")");
+  } catch(e){
+    console.error(e);
+    alert("❌ Gagal simpan: "+e.message);
+  }
+}
+
+// ========= HELPER TANGGAL =========
 function todayId(){
   const d = new Date();
   return d.toISOString().slice(0,10); // YYYY-MM-DD
@@ -355,5 +393,3 @@ function addStyleToSheet(ws, range) {
 </script>
 </body>
 </html>
-
-
