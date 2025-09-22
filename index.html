@@ -93,12 +93,13 @@
   </div>
 
 <script>
-// ========= FIREBASE CONFIG =========
+/* ========= GANTI DENGAN FIREBASE CONFIG PROJECTMU ========= */
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyA9cPZlGt6nfcTqfo0H0_Jfd4RaVWOk--4",
   authDomain: "utilitymonitoring.firebaseapp.com",
   projectId: "utilitymonitoring",
-  storageBucket: "utilitymonitoring.appspot.com",
+  storageBucket: "utilitymonitoring.firebasestorage.appspot.com",
   messagingSenderId: "427253616217",
   appId: "1:427253616217:web:05032969604a91c4552b48",
   measurementId: "G-4CE9GYWEPP"
@@ -106,72 +107,20 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// ========= SIMPAN DATA KE FIRESTORE =========
-async function saveVisible(){
-  const cat = document.getElementById('kategori').value;
-  const date = document.getElementById('globalDate').value || todayId();
-  if(!cat){ alert("Pilih kategori dulu."); return; }
-
-  let data = {};
-  if(cat === 'PLN'){
-    const lwbpAwal = parseFloat(document.querySelector('[data-field="lwbpAwal"]').value)||0;
-    const lwbpAkhir = parseFloat(document.querySelector('[data-field="lwbpAkhir"]').value)||0;
-    const wbpAwal  = parseFloat(document.querySelector('[data-field="wbpAwal"]').value)||0;
-    const wbpAkhir = parseFloat(document.querySelector('[data-field="wbpAkhir"]').value)||0;
-    const kvarAwal = parseFloat(document.querySelector('[data-field="kvarAwal"]').value)||0;
-    const kvarAkhir= parseFloat(document.querySelector('[data-field="kvarAkhir"]').value)||0;
-
-    data = {
-      lwbpAwal, lwbpAkhir, lwbpPakai:(lwbpAkhir-lwbpAwal),
-      wbpAwal, wbpAkhir, wbpPakai:(wbpAkhir-wbpAwal),
-      kvarAwal,kvarAkhir,kvarPakai:(kvarAkhir-kvarAwal),
-      totalKwh:(lwbpAkhir-lwbpAwal)+(wbpAkhir-wbpAwal),
-      timestamp: Date.now()
-    };
-  } 
-  else {
-    const rows = document.querySelectorAll(`#formArea tbody tr`);
-    const items = [];
-    rows.forEach(r=>{
-      const name = r.querySelector('input[type="text"]').value;
-      const pemakaian = parseFloat(r.querySelector('input[type="number"]').value)||0;
-      items.push({name, pemakaian});
-    });
-    data = {items, timestamp: Date.now()};
-  }
-
-  try {
-    await db.collection('utility_usage').doc(cat).collection('readings').doc(date).set(data);
-    alert("✅ Data tersimpan untuk "+cat+" ("+date+")");
-  } catch(e){
-    console.error(e);
-    alert("❌ Gagal simpan: "+e.message);
-  }
-}
-
-// ========= HELPER TANGGAL =========
-function todayId(){
-  const d = new Date();
-  return d.toISOString().slice(0,10); // YYYY-MM-DD
-}
+/* ======= Helpers tanggal ======= */
+function todayId(){ const d=new Date(); return d.toISOString().slice(0,10); }
 
 /* ================== RENDER FORMS ================== */
 function renderCategory(){
-  const cat = document.getElementById('kategori').value;
-  const area = document.getElementById('formArea');
+  const cat=document.getElementById('kategori').value;
+  const area=document.getElementById('formArea');
   document.getElementById('summary').style.display='none';
-  if(!cat){ area.innerHTML = '<div class="muted">Pilih kategori untuk tampilkan form input.</div>'; return; }
+  if(!cat){ area.innerHTML='<div class="muted">Pilih kategori untuk tampilkan form input.</div>'; return; }
 
-  if(cat === 'PLN'){
-    area.innerHTML = renderPLNForm();
-    autoFillPLNStarts();
-  } else if(cat === 'LVMDP'){
-    area.innerHTML = renderLVMDPForm();
-  } else if(cat === 'AHU'){
-    area.innerHTML = renderAHUForm();
-  } else if(cat === 'WATER'){
-    area.innerHTML = renderWaterForm();
-  }
+  if(cat==='PLN'){ area.innerHTML=renderPLNForm(); autoFillPLNStarts(); }
+  else if(cat==='LVMDP'){ area.innerHTML=renderLVMDPForm(); }
+  else if(cat==='AHU'){ area.innerHTML=renderAHUForm(); }
+  else if(cat==='WATER'){ area.innerHTML=renderWaterForm(); }
 }
 
 function renderPLNForm(){
@@ -189,18 +138,18 @@ function renderPLNForm(){
 }
 async function autoFillPLNStarts(){
   try{
-    const snap = await db.collection('utility_usage').doc('PLN').collection('readings').orderBy('timestamp','desc').limit(1).get();
+    const snap=await db.collection('utility_usage').doc('PLN').collection('readings').orderBy('timestamp','desc').limit(1).get();
     if(snap.empty) return;
-    const last = snap.docs[0].data();
+    const last=snap.docs[0].data();
     ['lwbpAkhir','wbpAkhir','kvarAkhir'].forEach(key=>{
-      const el = document.querySelector(`[data-field="${key.replace('Akhir','Awal')}"]`);
-      if(el && last[key]!==undefined) el.value = last[key];
+      const el=document.querySelector(`[data-field="${key.replace('Akhir','Awal')}"]`);
+      if(el && last[key]!==undefined) el.value=last[key];
     });
   }catch(e){ console.error(e); }
 }
 
 function renderLVMDPForm(){
-  const names = ['LVMDP1','LVMDP2','LVMDP3','LVMDP4'];
+  const names=['LVMDP1','LVMDP2','LVMDP3','LVMDP4'];
   return `<h3>LVMDP (MWh)</h3>
     <table id="tblLVMDP"><thead><tr><th>Nama Panel</th><th>Pemakaian Hari Ini (MWh)</th></tr></thead><tbody>
     ${names.map(n=>`<tr><td><input type="text" value="${n}" readonly/></td><td><input type="number" data-field="pemakaian"/></td></tr>`).join('')}
@@ -208,7 +157,7 @@ function renderLVMDPForm(){
 }
 
 function renderAHUForm(){
-  const names = ['SDB-AC.A','SDB-AC.B','SDB-AC.C','SDB-AC.D'];
+  const names=['SDB-AC.A','SDB-AC.B','SDB-AC.C','SDB-AC.D'];
   return `<h3>AHU (kWh)</h3>
     <table id="tblAHU"><thead><tr><th>Nama Panel</th><th>Pemakaian Hari Ini (kWh)</th></tr></thead><tbody>
     ${names.map(n=>`<tr><td><input type="text" value="${n}" readonly/></td><td><input type="number" data-field="pemakaian"/></td></tr>`).join('')}
@@ -225,6 +174,50 @@ function addWaterRow(name=''){
   const row=document.createElement('tr');
   row.innerHTML=`<td><input type="text" value="${name}" /></td><td><input type="number" data-field="pemakaian"/></td><td><button onclick="this.closest('tr').remove()" class="btn btn-ghost">Hapus</button></td>`;
   tbody.appendChild(row);
+}
+
+/* ================== SAVE DATA + UPDATE UI ================== */
+async function saveVisible(){
+  const cat=document.getElementById('kategori').value;
+  if(!cat) return alert('Pilih kategori dulu');
+  const date=document.getElementById('globalDate').value || todayId();
+  const docRef=db.collection('utility_usage').doc(cat).collection('readings').doc(date);
+
+  try{
+    if(cat==='PLN'){
+      const lwbpAwal=Number(document.querySelector('[data-field="lwbpAwal"]').value||0);
+      const lwbpAkhir=Number(document.querySelector('[data-field="lwbpAkhir"]').value||0);
+      const wbpAwal=Number(document.querySelector('[data-field="wbpAwal"]').value||0);
+      const wbpAkhir=Number(document.querySelector('[data-field="wbpAkhir"]').value||0);
+      const kvarAwal=Number(document.querySelector('[data-field="kvarAwal"]').value||0);
+      const kvarAkhir=Number(document.querySelector('[data-field="kvarAkhir"]').value||0);
+
+      const lwbpPakai=lwbpAkhir-lwbpAwal;
+      const wbpPakai=wbpAkhir-wbpAwal;
+      const kvarPakai=kvarAkhir-kvarAwal;
+      const totalKwh=lwbpPakai+wbpPakai;
+
+      document.querySelector('[data-field="lwbpPakai"]').innerText=lwbpPakai;
+      document.querySelector('[data-field="wbpPakai"]').innerText=wbpPakai;
+      document.querySelector('[data-field="kvarPakai"]').innerText=kvarPakai;
+      document.querySelector('[data-field="totalKwh"]').innerText=totalKwh;
+
+      await docRef.set({timestamp:new Date(),lwbpAwal,lwbpAkhir,lwbpPakai,wbpAwal,wbpAkhir,wbpPakai,kvarAwal,kvarAkhir,kvarPakai,totalKwh},{merge:true});
+      alert('✅ PLN tersimpan & tabel diperbarui');
+    }
+    else if(cat==='LVMDP'||cat==='AHU'||cat==='WATER'){
+      const tblId=cat==='LVMDP'?'#tblLVMDP':cat==='AHU'?'#tblAHU':'#tblWATER';
+      const rows=Array.from(document.querySelectorAll(`${tblId} tbody tr`));
+      const data=rows.map(r=>{
+        const name=r.querySelector('input[type="text"]').value;
+        const pemakaian=Number(r.querySelector('input[data-field="pemakaian"]').value||0);
+        r.querySelector('input[data-field="pemakaian"]').setAttribute("value",pemakaian);
+        return {name,pemakaian};
+      });
+      await docRef.set({timestamp:new Date(),items:data},{merge:true});
+      alert(`✅ ${cat} tersimpan & tabel diperbarui`);
+    }
+  }catch(err){ console.error('saveVisible error',err); alert('❌ Gagal simpan: '+err.message); }
 }
 
 /* ================== DASHBOARD GRAFIK ================== */
@@ -251,145 +244,55 @@ async function loadDashboard(){
 
   const ctx=document.getElementById('chart').getContext('2d');
   if(chartInstance) chartInstance.destroy();
-  chartInstance=new Chart(ctx,{
-    type:'line',
-    data:{labels,datasets:[{label:`Pemakaian ${cat}`,data:values,borderColor:color,backgroundColor:color+'33',tension:0.3,fill:true,pointRadius:5,pointBackgroundColor:color,pointHoverRadius:7}]},
-    options:{
-      responsive:true,maintainAspectRatio:false,
-      plugins:{title:{display:true,text:`Grafik Pemakaian ${cat} (${month})`,font:{size:16,weight:'bold'}},tooltip:{callbacks:{label:(ctx)=>` ${ctx.formattedValue} ${cat==='WATER'?'m³':'kWh'}`}}},
-      scales:{y:{beginAtZero:true,title:{display:true,text:'Pemakaian'}},x:{title:{display:true,text:'Tanggal'}}},
-      animation:{duration:800,easing:'easeOutQuart'}
-    }
-  });
+  chartInstance=new Chart(ctx,{type:'line',data:{labels,datasets:[{label:`Pemakaian ${cat}`,data:values,borderColor:color,backgroundColor:color+'33',tension:0.3,fill:true,pointRadius:5,pointBackgroundColor:color,pointHoverRadius:7}]},options:{responsive:true,maintainAspectRatio:false,plugins:{title:{display:true,text:`Grafik Pemakaian ${cat} (${month})`,font:{size:16,weight:'bold'}},tooltip:{callbacks:{label:(ctx)=>` ${ctx.formattedValue} ${cat==='WATER'?'m³':'kWh'}`}}},scales:{y:{beginAtZero:true,title:{display:true,text:'Pemakaian'}},x:{title:{display:true,text:'Tanggal'}}},animation:{duration:800,easing:'easeOutQuart'}}});
 }
 function clearChart(){if(chartInstance){chartInstance.destroy();chartInstance=null;}}
+  /* ===== PATCH untuk xlsx-style agar support API modern ===== */
+if (!XLSX.utils.book_new) {
+  XLSX.utils.book_new = function () {
+    return { SheetNames: [], Sheets: {} };
+  };
+}
+if (!XLSX.utils.book_append_sheet) {
+  XLSX.utils.book_append_sheet = function (wb, ws, name) {
+    wb.SheetNames.push(name);
+    wb.Sheets[name] = ws;
+  };
+}
 
-/* ---------------- styled export (Current) ---------------- */
+/* ================== EXPORT FUNCTIONS (Styled) ================== */
+function setColumnWidths(ws,aoa){const colWidths=[];aoa.forEach(row=>{row.forEach((cell,cIdx)=>{const len=cell?String(cell).length:0;colWidths[cIdx]=Math.max(colWidths[cIdx]||0,len);});});ws['!cols']=colWidths.map(w=>({wch:Math.min(Math.max(Math.ceil(w)+2,10),50)}));}
+function addStyleToSheet(ws,range){for(let R=range.s.r;R<=range.e.r;++R){for(let C=range.s.c;C<=range.e.c;++C){const cell_address={c:C,r:R};const cell_ref=XLSX.utils.encode_cell(cell_address);if(!ws[cell_ref])continue;ws[cell_ref].s={border:{top:{style:"thin",color:{rgb:"000000"}},bottom:{style:"thin",color:{rgb:"000000"}},left:{style:"thin",color:{rgb:"000000"}},right:{style:"thin",color:{rgb:"000000"}}},font:{bold:(R===range.s.r||R===range.s.r+2)},alignment:{horizontal:"center",vertical:"center",wrapText:true}};}}}
+
 function exportCurrent(){
-  const cat = document.getElementById('kategori').value || document.getElementById('dashCat').value;
+  const cat=document.getElementById('kategori').value||document.getElementById('dashCat').value;
   if(!cat) return alert('Pilih kategori dulu (untuk export sheet aktif).');
-  const date = document.getElementById('globalDate').value || todayId();
-
-  db.collection('utility_usage').doc(cat).collection('readings').doc(date).get()
-    .then(doc=>{
-      const wb = XLSX.utils.book_new();
-      let aoa = [];
-
-      if(!doc.exists){
-        aoa = [['No data for', date]];
-      } else {
-        const data = doc.data();
-        if(cat === 'PLN'){
-          aoa = [
-            ['Meter','Awal','Akhir','Pakai'],
-            ['LWBP', data.lwbpAwal||0, data.lwbpAkhir||0, data.lwbpPakai||0],
-            ['WBP',  data.wbpAwal||0,  data.wbpAkhir||0,  data.wbpPakai||0],
-            ['KVARh',data.kvarAwal||0, data.kvarAkhir||0, data.kvarPakai||0],
-            ['Total kWh','','', data.totalKwh||0]
-          ];
-        } else {
-          aoa = [['Name','Pemakaian']];
-          (data.items||[]).forEach(it=> aoa.push([it.name, it.pemakaian]));
-        }
-      }
-
-      const header = [['Tanggal:', date], []];
-      const aoaAll = [...header, ...aoa];
-      const ws = XLSX.utils.aoa_to_sheet(aoaAll);
-
-      setColumnWidths(ws, aoaAll);
-      const range = XLSX.utils.decode_range(ws['!ref']);
-      addStyleToSheet(ws, range);
-
-      XLSX.utils.book_append_sheet(wb, ws, cat.substring(0,31));
-      XLSX.writeFile(wb, `Pemakaian_${cat}_${date}.xlsx`);
-    })
-    .catch(err=>{ console.error(err); alert('Gagal export: '+err.message); });
+  const date=document.getElementById('globalDate').value||todayId();
+  db.collection('utility_usage').doc(cat).collection('readings').doc(date).get().then(doc=>{
+    const wb=XLSX.utils.book_new();let aoa=[];
+    if(!doc.exists){aoa=[['No data for',date]];}
+    else{const data=doc.data();if(cat==='PLN'){aoa=[['Meter','Awal','Akhir','Pakai'],['LWBP',data.lwbpAwal||0,data.lwbpAkhir||0,data.lwbpPakai||0],['WBP',data.wbpAwal||0,data.wbpAkhir||0,data.wbpPakai||0],['KVARh',data.kvarAwal||0,data.kvarAkhir||0,data.kvarPakai||0],['Total kWh','','',data.totalKwh||0]];}else{aoa=[['Name','Pemakaian']];(data.items||[]).forEach(it=>aoa.push([it.name,it.pemakaian]));}}
+    const header=[['Tanggal:',date],[]];const aoaAll=[...header,...aoa];const ws=XLSX.utils.aoa_to_sheet(aoaAll);
+    setColumnWidths(ws,aoaAll);const range=XLSX.utils.decode_range(ws['!ref']);addStyleToSheet(ws,range);
+    XLSX.utils.book_append_sheet(wb,ws,cat.substring(0,31));XLSX.writeFile(wb,`Pemakaian_${cat}_${date}.xlsx`);
+  }).catch(err=>{console.error(err);alert('Gagal export: '+err.message);});
 }
-
-/* ---------------- styled export (All categories for a month) ---------------- */
 async function exportAll(){
-  const month = document.getElementById('dashMonth').value;
+  const month=document.getElementById('dashMonth').value;
   if(!month) return alert('Pilih bulan di Dashboard (untuk exportAll)');
-
-  const cats = ['PLN','LVMDP','AHU','WATER'];
-  const wb = XLSX.utils.book_new();
-
+  const cats=['PLN','LVMDP','AHU','WATER'];const wb=XLSX.utils.book_new();
   for(const cat of cats){
-    const snap = await db.collection('utility_usage').doc(cat).collection('readings').orderBy('timestamp','asc').get();
-    const rows = snap.docs.map(d=>({id:d.id, ...d.data()})).filter(x=>x.id.startsWith(month));
-
-    let aoa = [];
-    if(cat === 'PLN'){
-      aoa.push(['Tanggal','LWBP Awal','LWBP Akhir','LWBP Pakai','WBP Awal','WBP Akhir','WBP Pakai','KVAR Awal','KVAR Akhir','KVAR Pakai','Total kWh']);
-      rows.forEach(r=>{
-        aoa.push([r.id, r.lwbpAwal||0, r.lwbpAkhir||0, r.lwbpPakai||0, r.wbpAwal||0, r.wbpAkhir||0, r.wbpPakai||0, r.kvarAwal||0, r.kvarAkhir||0, r.kvarPakai||0, r.totalKwh||0]);
-      });
-    } else {
-      aoa.push(['Tanggal','Name','Pemakaian']);
-      rows.forEach(r=>{
-        (r.items||[]).forEach(it=>{
-          aoa.push([r.id, it.name, it.pemakaian]);
-        });
-      });
-    }
-
-    const header = [[`Category: ${cat}`],[`Bulan: ${month}`],[]];
-    const aoaAll = [...header, ...aoa];
-    const ws = XLSX.utils.aoa_to_sheet(aoaAll);
-
-    setColumnWidths(ws, aoaAll);
-    const range = XLSX.utils.decode_range(ws['!ref']);
-    addStyleToSheet(ws, range);
-
-    XLSX.utils.book_append_sheet(wb, ws, cat.substring(0,31));
-  }
-
-  XLSX.writeFile(wb, `Pemakaian_All_${month}.xlsx`);
-}
-
-/* ===== helper: set column widths berdasarkan isi aoa ===== */
-function setColumnWidths(ws, aoa) {
-  const colWidths = [];
-  aoa.forEach(row => {
-    row.forEach((cell, cIdx) => {
-      const len = cell === null || cell === undefined ? 0 : String(cell).length;
-      colWidths[cIdx] = Math.max(colWidths[cIdx] || 0, len);
-    });
-  });
-  ws['!cols'] = colWidths.map(w => {
-    const width = Math.min(Math.max(Math.ceil(w) + 2, 10), 50);
-    return { wch: width };
-  });
-}
-
-/* ===== helper: add border + bold header + center alignment ===== */
-function addStyleToSheet(ws, range) {
-  for (let R = range.s.r; R <= range.e.r; ++R) {
-    for (let C = range.s.c; C <= range.e.c; ++C) {
-      const cell_address = {c:C, r:R};
-      const cell_ref = XLSX.utils.encode_cell(cell_address);
-      if(!ws[cell_ref]) continue;
-      ws[cell_ref].s = {
-        border: {
-          top: {style: "thin", color: {rgb: "000000"}},
-          bottom: {style: "thin", color: {rgb: "000000"}},
-          left: {style: "thin", color: {rgb: "000000"}},
-          right: {style: "thin", color: {rgb: "000000"}}
-        },
-        font: { bold: (R === (range.s.r+2) || R === range.s.r) }, 
-        alignment: { horizontal: "center", vertical: "center", wrapText: true }
-      };
-    }
-  }
+    const snap=await db.collection('utility_usage').doc(cat).collection('readings').orderBy('timestamp','asc').get();
+    const rows=snap.docs.map(d=>({id:d.id,...d.data()})).filter(x=>x.id.startsWith(month));
+    let aoa=[];if(cat==='PLN'){aoa.push(['Tanggal','LWBP Awal','LWBP Akhir','LWBP Pakai','WBP Awal','WBP Akhir','WBP Pakai','KVAR Awal','KVAR Akhir','KVAR Pakai','Total kWh']);rows.forEach(r=>{aoa.push([r.id,r.lwbpAwal||0,r.lwbpAkhir||0,r.lwbpPakai||0,r.wbpAwal||0,r.wbpAkhir||0,r.wbpPakai||0,r.kvarAwal||0,r.kvarAkhir||0,r.kvarPakai||0,r.totalKwh||0]);});}else{aoa.push(['Tanggal','Name','Pemakaian']);rows.forEach(r=>(r.items||[]).forEach(it=>{aoa.push([r.id,it.name,it.pemakaian]);}));}
+    const header=[[`Category: ${cat}`],[`Bulan: ${month}`],[]];const aoaAll=[...header,...aoa];const ws=XLSX.utils.aoa_to_sheet(aoaAll);
+    setColumnWidths(ws,aoaAll);const range=XLSX.utils.decode_range(ws['!ref']);addStyleToSheet(ws,range);
+    XLSX.utils.book_append_sheet(wb,ws,cat.substring(0,31));}
+  XLSX.writeFile(wb,`Pemakaian_All_${month}.xlsx`);
 }
 
 /* ================== INIT ================== */
-(function init(){
-  const m=new Date(); 
-  document.getElementById('dashMonth').value=m.toISOString().slice(0,7);
-  document.getElementById('globalDate').value=todayId();
-})();
+(function init(){const m=new Date();document.getElementById('dashMonth').value=m.toISOString().slice(0,7);document.getElementById('globalDate').value=todayId();})();
 </script>
 </body>
 </html>
