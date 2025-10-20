@@ -39,6 +39,10 @@
 <body>
   <div class="container">
     <h1>📊 Utility Input & Dashboard</h1>
+    <div style="color:#64748b; font-size:14px; margin-bottom:16px;">
+      By <strong>Syahrul Fiqri</strong>
+    </div>
+
 
     <!-- FORM INPUT -->
     <div class="card">
@@ -177,76 +181,158 @@ function addWaterRow(name=''){
 }
 
 /* ================== SAVE DATA + UPDATE UI ================== */
-async function saveVisible(){
-  const cat=document.getElementById('kategori').value;
-  if(!cat) return alert('Pilih kategori dulu');
-  const date=document.getElementById('globalDate').value || todayId();
-  const docRef=db.collection('utility_usage').doc(cat).collection('readings').doc(date);
+async function saveVisible() {
+  const cat = document.getElementById('kategori').value;
+  if (!cat) return alert('Pilih kategori dulu');
+  const date = document.getElementById('globalDate').value || todayId();
+  const docRef = db.collection('utility_usage').doc(cat).collection('readings').doc(date);
 
-  try{
-    if(cat==='PLN'){
-      const lwbpAwal=Number(document.querySelector('[data-field="lwbpAwal"]').value||0);
-      const lwbpAkhir=Number(document.querySelector('[data-field="lwbpAkhir"]').value||0);
-      const wbpAwal=Number(document.querySelector('[data-field="wbpAwal"]').value||0);
-      const wbpAkhir=Number(document.querySelector('[data-field="wbpAkhir"]').value||0);
-      const kvarAwal=Number(document.querySelector('[data-field="kvarAwal"]').value||0);
-      const kvarAkhir=Number(document.querySelector('[data-field="kvarAkhir"]').value||0);
+  try {
+    if (cat === 'PLN') {
+      // Ambil nilai input
+      const lwbpAwal = Number(document.querySelector('[data-field="lwbpAwal"]').value || 0);
+      const lwbpAkhir = Number(document.querySelector('[data-field="lwbpAkhir"]').value || 0);
+      const wbpAwal = Number(document.querySelector('[data-field="wbpAwal"]').value || 0);
+      const wbpAkhir = Number(document.querySelector('[data-field="wbpAkhir"]').value || 0);
+      const kvarAwal = Number(document.querySelector('[data-field="kvarAwal"]').value || 0);
+      const kvarAkhir = Number(document.querySelector('[data-field="kvarAkhir"]').value || 0);
 
-      const lwbpPakai=lwbpAkhir-lwbpAwal;
-      const wbpPakai=wbpAkhir-wbpAwal;
-      const kvarPakai=kvarAkhir-kvarAwal;
-      const totalKwh=lwbpPakai+wbpPakai;
+      // Hitung selisih pemakaian dasar
+      let lwbpPakai = (lwbpAkhir - lwbpAwal);
+      let wbpPakai = (wbpAkhir - wbpAwal);
+      let kvarPakai = (kvarAkhir - kvarAwal);
 
-      document.querySelector('[data-field="lwbpPakai"]').innerText=lwbpPakai;
-      document.querySelector('[data-field="wbpPakai"]').innerText=wbpPakai;
-      document.querySelector('[data-field="kvarPakai"]').innerText=kvarPakai;
-      document.querySelector('[data-field="totalKwh"]').innerText=totalKwh;
+      // Terapkan faktor kali (×1000 ×8)
+      const faktorKali = 1000 * 8;
+      lwbpPakai *= faktorKali;
+      wbpPakai *= faktorKali;
+      kvarPakai *= faktorKali;
 
-      await docRef.set({timestamp:new Date(),lwbpAwal,lwbpAkhir,lwbpPakai,wbpAwal,wbpAkhir,wbpPakai,kvarAwal,kvarAkhir,kvarPakai,totalKwh},{merge:true});
-      alert('✅ PLN tersimpan & tabel diperbarui');
+      // Hitung total kWh (setelah faktor kali)
+      const totalKwh = lwbpPakai + wbpPakai;
+
+      // Update tampilan
+      document.querySelector('[data-field="lwbpPakai"]').innerText = lwbpPakai.toLocaleString();
+      document.querySelector('[data-field="wbpPakai"]').innerText = wbpPakai.toLocaleString();
+      document.querySelector('[data-field="kvarPakai"]').innerText = kvarPakai.toLocaleString();
+      document.querySelector('[data-field="totalKwh"]').innerText = totalKwh.toLocaleString();
+
+      // Simpan ke Firestore
+      await docRef.set({
+        timestamp: new Date(),
+        lwbpAwal, lwbpAkhir, lwbpPakai,
+        wbpAwal, wbpAkhir, wbpPakai,
+        kvarAwal, kvarAkhir, kvarPakai,
+        totalKwh,
+        faktorKali
+      }, { merge: true });
+
+      alert('✅ PLN tersimpan dengan faktor kali (x1000x8) & tabel diperbarui');
     }
-    else if(cat==='LVMDP'||cat==='AHU'||cat==='WATER'){
-      const tblId=cat==='LVMDP'?'#tblLVMDP':cat==='AHU'?'#tblAHU':'#tblWATER';
-      const rows=Array.from(document.querySelectorAll(`${tblId} tbody tr`));
-      const data=rows.map(r=>{
-        const name=r.querySelector('input[type="text"]').value;
-        const pemakaian=Number(r.querySelector('input[data-field="pemakaian"]').value||0);
-        r.querySelector('input[data-field="pemakaian"]').setAttribute("value",pemakaian);
-        return {name,pemakaian};
+
+    else if (cat === 'LVMDP' || cat === 'AHU' || cat === 'WATER') {
+      const tblId = cat === 'LVMDP' ? '#tblLVMDP' : cat === 'AHU' ? '#tblAHU' : '#tblWATER';
+      const rows = Array.from(document.querySelectorAll(`${tblId} tbody tr`));
+      const data = rows.map(r => {
+        const name = r.querySelector('input[type="text"]').value;
+        const pemakaian = Number(r.querySelector('input[data-field="pemakaian"]').value || 0);
+        r.querySelector('input[data-field="pemakaian"]').setAttribute("value", pemakaian);
+        return { name, pemakaian };
       });
-      await docRef.set({timestamp:new Date(),items:data},{merge:true});
+
+      await docRef.set({ timestamp: new Date(), items: data }, { merge: true });
       alert(`✅ ${cat} tersimpan & tabel diperbarui`);
     }
-  }catch(err){ console.error('saveVisible error',err); alert('❌ Gagal simpan: '+err.message); }
+
+  } catch (err) {
+    console.error('saveVisible error', err);
+    alert('❌ Gagal simpan: ' + err.message);
+  }
 }
 
-/* ================== DASHBOARD GRAFIK ================== */
-let chartInstance=null;
-async function loadDashboard(){
-  const cat=document.getElementById('dashCat').value;
-  const month=document.getElementById('dashMonth').value;
-  if(!month) return alert('Pilih bulan dulu');
 
-  const snap=await db.collection('utility_usage').doc(cat).collection('readings').orderBy('timestamp','asc').get();
-  const data=snap.docs.map(d=>({id:d.id,...d.data()})).filter(x=>x.id.startsWith(month));
-  if(data.length===0) return alert('Tidak ada data');
+/* ================== DASHBOARD GRAFIK (dengan faktor kali untuk PLN) ================== */
+async function loadDashboard() {
+  const cat = document.getElementById('dashCat').value;
+  const month = document.getElementById('dashMonth').value;
+  if (!month) return alert('Pilih bulan dulu');
 
-  const labels=[],values=[];
-  data.forEach(d=>{
+  const snap = await db.collection('utility_usage')
+    .doc(cat)
+    .collection('readings')
+    .orderBy('timestamp', 'asc')
+    .get();
+
+  const data = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+                        .filter(x => x.id.startsWith(month));
+
+  if (data.length === 0) return alert('Tidak ada data');
+
+  const labels = [], values = [];
+
+  data.forEach(d => {
     labels.push(d.id);
-    if(cat==='PLN') values.push(d.totalKwh||0);
-    else if(d.items){ values.push(d.items.reduce((s,it)=>s+(it.pemakaian||0),0)); }
-    else { values.push(d.value||0); }
+
+    if (cat === 'PLN') {
+      // Gunakan faktor kali dari data, fallback ke 8000 kalau belum ada
+      const faktor = d.faktorKali || 8000;
+      const total = ((d.lwbpAkhir - d.lwbpAwal) + (d.wbpAkhir - d.wbpAwal)) * faktor;
+      values.push(total);
+    } 
+    else if (d.items) {
+      values.push(d.items.reduce((sum, it) => sum + (it.pemakaian || 0), 0));
+    } 
+    else {
+      values.push(d.value || 0);
+    }
   });
 
-  const colors={PLN:'#2563eb',LVMDP:'#16a34a',AHU:'#f59e0b',WATER:'#06b6d4'};
-  const color=colors[cat]||'#2563eb';
+  const colors = { PLN: '#2563eb', LVMDP: '#16a34a', AHU: '#f59e0b', WATER: '#06b6d4' };
+  const color = colors[cat] || '#2563eb';
 
-  const ctx=document.getElementById('chart').getContext('2d');
-  if(chartInstance) chartInstance.destroy();
-  chartInstance=new Chart(ctx,{type:'line',data:{labels,datasets:[{label:`Pemakaian ${cat}`,data:values,borderColor:color,backgroundColor:color+'33',tension:0.3,fill:true,pointRadius:5,pointBackgroundColor:color,pointHoverRadius:7}]},options:{responsive:true,maintainAspectRatio:false,plugins:{title:{display:true,text:`Grafik Pemakaian ${cat} (${month})`,font:{size:16,weight:'bold'}},tooltip:{callbacks:{label:(ctx)=>` ${ctx.formattedValue} ${cat==='WATER'?'m³':'kWh'}`}}},scales:{y:{beginAtZero:true,title:{display:true,text:'Pemakaian'}},x:{title:{display:true,text:'Tanggal'}}},animation:{duration:800,easing:'easeOutQuart'}}});
+  const ctx = document.getElementById('chart').getContext('2d');
+  if (chartInstance) chartInstance.destroy();
+
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: `Pemakaian ${cat}`,
+        data: values,
+        borderColor: color,
+        backgroundColor: color + '33',
+        tension: 0.3,
+        fill: true,
+        pointRadius: 5,
+        pointBackgroundColor: color,
+        pointHoverRadius: 7
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        title: {
+          display: true,
+          text: `Grafik Pemakaian ${cat} (${month})`,
+          font: { size: 16, weight: 'bold' }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.formattedValue} ${cat === 'WATER' ? 'm³' : 'kWh'}`
+          }
+        }
+      },
+      scales: {
+        y: { beginAtZero: true, title: { display: true, text: 'Pemakaian' } },
+        x: { title: { display: true, text: 'Tanggal' } }
+      },
+      animation: { duration: 800, easing: 'easeOutQuart' }
+    }
+  });
 }
-function clearChart(){if(chartInstance){chartInstance.destroy();chartInstance=null;}}
+
   /* ===== PATCH untuk xlsx-style agar support API modern ===== */
 if (!XLSX.utils.book_new) {
   XLSX.utils.book_new = function () {
@@ -260,39 +346,110 @@ if (!XLSX.utils.book_append_sheet) {
   };
 }
 
-/* ================== EXPORT FUNCTIONS (Styled) ================== */
-function setColumnWidths(ws,aoa){const colWidths=[];aoa.forEach(row=>{row.forEach((cell,cIdx)=>{const len=cell?String(cell).length:0;colWidths[cIdx]=Math.max(colWidths[cIdx]||0,len);});});ws['!cols']=colWidths.map(w=>({wch:Math.min(Math.max(Math.ceil(w)+2,10),50)}));}
-function addStyleToSheet(ws,range){for(let R=range.s.r;R<=range.e.r;++R){for(let C=range.s.c;C<=range.e.c;++C){const cell_address={c:C,r:R};const cell_ref=XLSX.utils.encode_cell(cell_address);if(!ws[cell_ref])continue;ws[cell_ref].s={border:{top:{style:"thin",color:{rgb:"000000"}},bottom:{style:"thin",color:{rgb:"000000"}},left:{style:"thin",color:{rgb:"000000"}},right:{style:"thin",color:{rgb:"000000"}}},font:{bold:(R===range.s.r||R===range.s.r+2)},alignment:{horizontal:"center",vertical:"center",wrapText:true}};}}}
+/* ================== EXPORT FUNCTIONS (Styled + Faktor Kali 8000 untuk PLN) ================== */
+function exportCurrent() {
+  const cat = document.getElementById('kategori').value || document.getElementById('dashCat').value;
+  if (!cat) return alert('Pilih kategori dulu (untuk export sheet aktif).');
+  const date = document.getElementById('globalDate').value || todayId();
+  const faktorKali = 8000; // 1000 x 8
 
-function exportCurrent(){
-  const cat=document.getElementById('kategori').value||document.getElementById('dashCat').value;
-  if(!cat) return alert('Pilih kategori dulu (untuk export sheet aktif).');
-  const date=document.getElementById('globalDate').value||todayId();
-  db.collection('utility_usage').doc(cat).collection('readings').doc(date).get().then(doc=>{
-    const wb=XLSX.utils.book_new();let aoa=[];
-    if(!doc.exists){aoa=[['No data for',date]];}
-    else{const data=doc.data();if(cat==='PLN'){aoa=[['Meter','Awal','Akhir','Pakai'],['LWBP',data.lwbpAwal||0,data.lwbpAkhir||0,data.lwbpPakai||0],['WBP',data.wbpAwal||0,data.wbpAkhir||0,data.wbpPakai||0],['KVARh',data.kvarAwal||0,data.kvarAkhir||0,data.kvarPakai||0],['Total kWh','','',data.totalKwh||0]];}else{aoa=[['Name','Pemakaian']];(data.items||[]).forEach(it=>aoa.push([it.name,it.pemakaian]));}}
-    const header=[['Tanggal:',date],[]];const aoaAll=[...header,...aoa];const ws=XLSX.utils.aoa_to_sheet(aoaAll);
-    setColumnWidths(ws,aoaAll);const range=XLSX.utils.decode_range(ws['!ref']);addStyleToSheet(ws,range);
-    XLSX.utils.book_append_sheet(wb,ws,cat.substring(0,31));XLSX.writeFile(wb,`Pemakaian_${cat}_${date}.xlsx`);
-  }).catch(err=>{console.error(err);alert('Gagal export: '+err.message);});
+  db.collection('utility_usage').doc(cat).collection('readings').doc(date).get()
+    .then(doc => {
+      const wb = XLSX.utils.book_new();
+      let aoa = [];
+
+      if (!doc.exists) {
+        aoa = [['No data for', date]];
+      } else {
+        const data = doc.data();
+
+        if (cat === 'PLN') {
+          // Hitung ulang dengan faktor kali 8000
+          const lwbpPakai = (data.lwbpAkhir - data.lwbpAwal) * faktorKali;
+          const wbpPakai  = (data.wbpAkhir - data.wbpAwal) * faktorKali;
+          const kvarPakai = (data.kvarAkhir - data.kvarAwal) * faktorKali;
+          const totalKwh  = (lwbpPakai + wbpPakai);
+
+          aoa = [
+            ['Meter','Awal','Akhir','Pakai (×8000)'],
+            ['LWBP', data.lwbpAwal || 0, data.lwbpAkhir || 0, lwbpPakai],
+            ['WBP',  data.wbpAwal  || 0, data.wbpAkhir  || 0, wbpPakai],
+            ['KVARh',data.kvarAwal || 0, data.kvarAkhir || 0, kvarPakai],
+            ['Total kWh','','', totalKwh]
+          ];
+        } else {
+          aoa = [['Name','Pemakaian']];
+          (data.items || []).forEach(it => aoa.push([it.name, it.pemakaian]));
+        }
+      }
+
+      const header = [['Tanggal:', date], []];
+      const aoaAll = [...header, ...aoa];
+      const ws = XLSX.utils.aoa_to_sheet(aoaAll);
+
+      setColumnWidths(ws, aoaAll);
+      const range = XLSX.utils.decode_range(ws['!ref']);
+      addStyleToSheet(ws, range);
+
+      XLSX.utils.book_append_sheet(wb, ws, cat.substring(0, 31));
+      XLSX.writeFile(wb, `Pemakaian_${cat}_${date}.xlsx`);
+    })
+    .catch(err => { console.error(err); alert('Gagal export: ' + err.message); });
 }
-async function exportAll(){
-  const month=document.getElementById('dashMonth').value;
-  if(!month) return alert('Pilih bulan di Dashboard (untuk exportAll)');
-  const cats=['PLN','LVMDP','AHU','WATER'];const wb=XLSX.utils.book_new();
-  for(const cat of cats){
-    const snap=await db.collection('utility_usage').doc(cat).collection('readings').orderBy('timestamp','asc').get();
-    const rows=snap.docs.map(d=>({id:d.id,...d.data()})).filter(x=>x.id.startsWith(month));
-    let aoa=[];if(cat==='PLN'){aoa.push(['Tanggal','LWBP Awal','LWBP Akhir','LWBP Pakai','WBP Awal','WBP Akhir','WBP Pakai','KVAR Awal','KVAR Akhir','KVAR Pakai','Total kWh']);rows.forEach(r=>{aoa.push([r.id,r.lwbpAwal||0,r.lwbpAkhir||0,r.lwbpPakai||0,r.wbpAwal||0,r.wbpAkhir||0,r.wbpPakai||0,r.kvarAwal||0,r.kvarAkhir||0,r.kvarPakai||0,r.totalKwh||0]);});}else{aoa.push(['Tanggal','Name','Pemakaian']);rows.forEach(r=>(r.items||[]).forEach(it=>{aoa.push([r.id,it.name,it.pemakaian]);}));}
-    const header=[[`Category: ${cat}`],[`Bulan: ${month}`],[]];const aoaAll=[...header,...aoa];const ws=XLSX.utils.aoa_to_sheet(aoaAll);
-    setColumnWidths(ws,aoaAll);const range=XLSX.utils.decode_range(ws['!ref']);addStyleToSheet(ws,range);
-    XLSX.utils.book_append_sheet(wb,ws,cat.substring(0,31));}
-  XLSX.writeFile(wb,`Pemakaian_All_${month}.xlsx`);
+
+async function exportAll() {
+  const month = document.getElementById('dashMonth').value;
+  if (!month) return alert('Pilih bulan di Dashboard (untuk exportAll)');
+  const faktorKali = 8000; // 1000 x 8
+  const cats = ['PLN', 'LVMDP', 'AHU', 'WATER'];
+  const wb = XLSX.utils.book_new();
+
+  for (const cat of cats) {
+    const snap = await db.collection('utility_usage').doc(cat).collection('readings').orderBy('timestamp', 'asc').get();
+    const rows = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(x => x.id.startsWith(month));
+
+    let aoa = [];
+
+    if (cat === 'PLN') {
+      aoa.push(['Tanggal','LWBP Awal','LWBP Akhir','LWBP Pakai (×8000)',
+                'WBP Awal','WBP Akhir','WBP Pakai (×8000)',
+                'KVAR Awal','KVAR Akhir','KVAR Pakai (×8000)','Total kWh']);
+      rows.forEach(r => {
+        const lwbpPakai = (r.lwbpAkhir - r.lwbpAwal) * faktorKali;
+        const wbpPakai  = (r.wbpAkhir - r.wbpAwal) * faktorKali;
+        const kvarPakai = (r.kvarAkhir - r.kvarAwal) * faktorKali;
+        const totalKwh  = (lwbpPakai + wbpPakai);
+        aoa.push([
+          r.id, r.lwbpAwal || 0, r.lwbpAkhir || 0, lwbpPakai,
+          r.wbpAwal || 0, r.wbpAkhir || 0, wbpPakai,
+          r.kvarAwal || 0, r.kvarAkhir || 0, kvarPakai, totalKwh
+        ]);
+      });
+    } else {
+      aoa.push(['Tanggal', 'Name', 'Pemakaian']);
+      rows.forEach(r => (r.items || []).forEach(it => {
+        aoa.push([r.id, it.name, it.pemakaian]);
+      }));
+    }
+
+    const header = [[`Category: ${cat}`],[`Bulan: ${month}`],[]];
+    const aoaAll = [...header, ...aoa];
+    const ws = XLSX.utils.aoa_to_sheet(aoaAll);
+
+    setColumnWidths(ws, aoaAll);
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    addStyleToSheet(ws, range);
+
+    XLSX.utils.book_append_sheet(wb, ws, cat.substring(0, 31));
+  }
+
+  XLSX.writeFile(wb, `Pemakaian_All_${month}.xlsx`);
 }
+
 
 /* ================== INIT ================== */
 (function init(){const m=new Date();document.getElementById('dashMonth').value=m.toISOString().slice(0,7);document.getElementById('globalDate').value=todayId();})();
 </script>
 </body>
 </html>
+
