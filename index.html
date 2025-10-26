@@ -348,7 +348,46 @@ if (!XLSX.utils.book_append_sheet) {
 }
 
 /* ================== EXPORT FUNCTIONS (Styled + Faktor Kali 8000 untuk PLN) ================== */
-function exportCurrent() {
+/* ===== helper: set column widths + styling helper (paste BEFORE exportCurrent) ===== */
+function setColumnWidths(ws, aoa) {
+  // aoa = array of arrays
+  const colWidths = [];
+  (aoa || []).forEach(row => {
+    (row || []).forEach((cell, cIdx) => {
+      const len = cell === null || cell === undefined ? 0 : String(cell).length;
+      colWidths[cIdx] = Math.max(colWidths[cIdx] || 0, len);
+    });
+  });
+  ws['!cols'] = colWidths.map(w => {
+    const width = Math.min(Math.max(Math.ceil(w) + 2, 10), 50);
+    return { wch: width };
+  });
+}
+
+function addStyleToSheet(ws, range) {
+  // range: result of XLSX.utils.decode_range(ws['!ref'])
+  if (!ws || !range) return;
+  for (let R = range.s.r; R <= range.e.r; ++R) {
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      const cell_address = { c: C, r: R };
+      const cell_ref = XLSX.utils.encode_cell(cell_address);
+      if (!ws[cell_ref]) continue;
+      // set style object (xlsx supports .s for styling when using xlsx library)
+      ws[cell_ref].s = {
+        border: {
+          top: { style: "thin", color: { rgb: "000000" } },
+          bottom: { style: "thin", color: { rgb: "000000" } },
+          left: { style: "thin", color: { rgb: "000000" } },
+          right: { style: "thin", color: { rgb: "000000" } }
+        },
+        font: { bold: (R === range.s.r || R === (range.s.r + 2)) },
+        alignment: { horizontal: "center", vertical: "center", wrapText: true }
+      };
+    }
+  }
+}
+
+  function exportCurrent() {
   const cat = document.getElementById('kategori').value || document.getElementById('dashCat').value;
   if (!cat) return alert('Pilih kategori dulu (untuk export sheet aktif).');
   const date = document.getElementById('globalDate').value || todayId();
@@ -453,5 +492,6 @@ async function exportAll() {
 </script>
 </body>
 </html>
+
 
 
